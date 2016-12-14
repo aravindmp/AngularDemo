@@ -1,0 +1,13 @@
+
+<!-- HTML code with Angular directives -->
+<div id ="Seq-SafetyTip" >
+    <div class="safetytip-title">LATEST SAFETY TIP</div>
+    <div  ng-controller="LatestSafetyTipController as safetyCtrl" >   
+        <div ng-repeat="tip in SafetyTip">
+            <div class="safetytip-content">{{tip.SeqwaterSafetyTipContent}}</div>
+            <div class="safetytip-link">
+                <a ng-href="{{tip.SeqwaterSafetyTipURL.Url}}">More information</a>
+            </div>
+        </div>   
+    </div>
+</div>
