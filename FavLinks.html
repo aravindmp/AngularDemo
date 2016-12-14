@@ -1,0 +1,11 @@
+<!-- HTML code with Angular directives   -->
+<div id="Seq-favlinks" >
+    <div class="favlinks-title">FAVOURITE LINKS</div>
+    <div  ng-controller="FavLinksController as favCtrl" >      
+        <div ng-repeat="favlink in favLinks">
+            <a ng-href="{{favlink.URL.Url}}">{{favlink.URL.Description}}</a>
+        </div>
+        <div><a ng-href="">Add a Link </a></div>
+    </div>
+</div>
+  
