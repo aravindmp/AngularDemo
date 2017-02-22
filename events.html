@@ -1,0 +1,139 @@
+<div id="seqEvents" ng-cloak>
+    <div ng-controller="eventsController" class="ng-scope">
+        <div ng-repeat="(key, value) in events | groupBy: 'mm'" class="clear eventMonthGroup">
+            <div ng-repeat="event in value">
+                <div id="eventMonth">{{event.EventDate | date:'MMM'}}</div>
+                <div id="eventDay">{{event.EventDate | date:'dd'}}</div>
+                <div id="eventDetails">
+                    <div>{{event.EventDate | date:'dd.MM.yyyy'}}</div>
+                    <div><a href="/NewsEvents/Events/DispForm.aspx?ID={{event.Id}}">{{event.Title}}</a></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="clear"><a href="/NewsEvents/">View all events</a></div>
+</div>
+
+<script type="text/javascript">
+
+angular
+	.module('seqwApp')
+	.controller('eventsController',eventsController);
+
+function eventsController($rootScope, $scope, $http, $q, sharePointDataService){
+	function getLocationQuery(location)
+	{
+	   var queryForLocations="<soap:Envelope xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xmlns:xsd='http://www.w3.org/2001/XMLSchema' xmlns:soap='http://schemas.xmlsoap.org/soap/envelope/'><soap:Body><GetListItems xmlns='http://schemas.microsoft.com/sharepoint/soap/'>"+
+	    "<listName>Events</listName><viewName></viewName>"+
+	    "<query><Query><Where><And><Contains><FieldRef Name='NewsArticle_Locations'/><Value Type='TaxonomyFieldType'>"+location+"</Value></Contains>"+
+	    "<DateRangesOverlap><FieldRef Name='EventDate' /><FieldRef Name='EndDate' /><FieldRef Name='RecurrenceID' /><Value Type='DateTime'><Now /></Value></DateRangesOverlap></And></Where>"+
+	    "<OrderBy><FieldRef Name='EventDate' /></OrderBy></Query></query>"+
+	    "<viewFields><ViewFields><FieldRef Name='Title'/><FieldRef Name='ID' /><FieldRef Name='Description' /><FieldRef Name='Body' /><FieldRef Name='Expires' /><FieldRef Name='URL' /><FieldRef Name='Created' /><FieldRef Name='Category' /><FieldRef Name='EventDate' /><FieldRef Name='EndDate' /><FieldRef Name='fAllDayEvent' /><FieldRef Name='RecurrenceID' /><FieldRef Name='fRecurrence' /><FieldRef Name='RecurrenceData' /><FieldRef Name='NewsArticle_Locations' /></ViewFields></viewFields>"+
+	    "<rowLimit>0</rowLimit>"+
+	    "<queryOptions><QueryOptions><CalendarDate></CalendarDate><RecurrencePatternXMLVersion>v3</RecurrencePatternXMLVersion><ExpandRecurrence>TRUE</ExpandRecurrence></QueryOptions></queryOptions></GetListItems></soap:Body></soap:Envelope>";
+		return queryForLocations;
+	}
+	function getQueryForAllEvents()
+	{   
+		 var getAllRecurEvents = "<soap:Envelope xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xmlns:xsd='http://www.w3.org/2001/XMLSchema' xmlns:soap='http://schemas.xmlsoap.org/soap/envelope/'><soap:Body><GetListItems xmlns='http://schemas.microsoft.com/sharepoint/soap/'>"+
+		    "<listName>Events</listName><viewName></viewName>"+
+		    "<query><Query><Where>"+
+		    "<DateRangesOverlap><FieldRef Name='EventDate' /><FieldRef Name='EndDate' /><FieldRef Name='RecurrenceID' /><Value Type='DateTime'><Now /></Value></DateRangesOverlap></Where>"+
+		    "<OrderBy><FieldRef Name='EventDate' /></OrderBy></Query></query>"+
+		    "<viewFields><ViewFields><FieldRef Name='Title'/><FieldRef Name='ID' /><FieldRef Name='Description' /><FieldRef Name='Body' /><FieldRef Name='Expires' /><FieldRef Name='URL' /><FieldRef Name='Created' /><FieldRef Name='Category' /><FieldRef Name='EventDate' /><FieldRef Name='EndDate' /><FieldRef Name='fAllDayEvent' /><FieldRef Name='RecurrenceID' /><FieldRef Name='fRecurrence' /><FieldRef Name='RecurrenceData' /><FieldRef Name='NewsArticle_Locations' /></ViewFields></viewFields>"+
+		    "<rowLimit>5</rowLimit>"+
+		    "<queryOptions><QueryOptions><CalendarDate></CalendarDate><RecurrencePatternXMLVersion>v3</RecurrencePatternXMLVersion><ExpandRecurrence>TRUE</ExpandRecurrence></QueryOptions></queryOptions></GetListItems></soap:Body></soap:Envelope>";
+		return getAllRecurEvents;
+	}
+
+
+	$rootScope.$on("LocationUpdate", function(event, args) {
+		$scope.location = args.MyLocation;
+		$scope.getEventsForLocation();
+		$scope.events=[];
+
+	});
+	$scope.events=[];
+	$scope.getEventsForLocation = function() {
+		var queryToSend="";
+		if($scope.location == undefined || $scope.location == '') {
+		queryToSend=getQueryForAllEvents();
+		}else{
+		queryToSend=getLocationQuery($scope.location);
+		}
+	
+	 	$.ajax({
+        url: '/NewsEvents/_vti_bin/lists.asmx',
+        beforeSend: function (xhr) {
+            xhr.setRequestHeader("SOAPAction", "http://schemas.microsoft.com/sharepoint/soap/GetListItems");
+        },
+        type: "POST",
+        dataType: "xml",
+        data: queryToSend,
+        success: getEventsDataComplete,
+        error: errorData,
+        contentType: "text/xml; charset=\"utf-8\""
+   		 });
+    }; 
+	function getEventsDataComplete(data)
+	{
+		//console.log(data);
+		var root = $(data);
+		var ItemCount = root.find("listitems").children().attr("ItemCount");
+		if(ItemCount > 0)
+		{
+		root.find("listitems").children().children().each(function () {
+		$this = $(this);
+		var ids = $this.attr("ows_UniqueId").split(";");
+		var eventdate = new Date($this.attr("ows_EventDate"));
+		$scope.events.push({
+		"EventDate": eventdate,
+		"Title": $this.attr("ows_Title"),
+		"Id": ids[0],
+		"Locations":$this.attr("ows_NewsArticle_Locations"),
+		"mm":eventdate.getMonth()
+		});	
+		});
+		}
+		else{
+		$scope.location = '';// if there are no events for this location, drop the filter
+		$scope.getEventsForLocation();
+		
+		}
+		//console.log($scope.events);
+
+	}
+	function getEventsDataError(reason)
+	{
+	 $log.log(JSON.stringify(reason));
+	}
+
+
+	function getRegionSuccess(data) {
+        $scope.region = data;
+    }
+
+    function getLocationSuccess(data) {
+        $scope.location = data;
+    }
+
+	function getPropertiesSuccess() {
+        $scope.getEventsForLocation();
+    }
+
+    function getPropertiesError(reason) {
+        $log.log(JSON.stringify(reason));
+        $scope.getEventsForLocation();
+    }
+
+	$q.all([
+		sharePointDataService.getUserProfileProperty("MyLocation")
+			.then(getLocationSuccess, getPropertiesError),
+		sharePointDataService.getUserProfileProperty("MyRegion")
+			.then(getRegionSuccess, getPropertiesError)
+	]).then(getPropertiesSuccess, getPropertiesError);
+
+
+};
+
+</script>
