@@ -71,7 +71,7 @@ function eventsController($rootScope, $scope, $http, $q, sharePointDataService){
         dataType: "xml",
         data: queryToSend,
         success: getEventsDataComplete,
-        error: errorData,
+        error: getEventsDataError,
         contentType: "text/xml; charset=\"utf-8\""
    		 });
     }; 
